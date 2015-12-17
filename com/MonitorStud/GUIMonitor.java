@@ -4,7 +4,9 @@ import com.Logic.Controller;
 
 import javax.swing.*;
 import javax.swing.filechooser.FileNameExtensionFilter;
-import javax.swing.text.*;
+import javax.swing.text.DefaultHighlighter;
+import javax.swing.text.Document;
+import javax.swing.text.Highlighter;
 import java.awt.*;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
@@ -36,12 +38,12 @@ public class GUIMonitor extends Component implements ActionListener {
     private File file;
     private String txtFile;
     private JTextPane txtPaneSource;
+    private Highlighter hilite;
 
     /**
      * Constructor
      */
     public GUIMonitor() {
-        fileChooser = new JFileChooser();
     }
 
     /**
@@ -67,15 +69,23 @@ public class GUIMonitor extends Component implements ActionListener {
      */
     private void InitializeGUI() {
         fileMenu = new JMenu("File");
-
         openItem = new JMenuItem("Open Source File");
         openItem.setAccelerator(KeyStroke.getKeyStroke(KeyEvent.VK_O, ActionEvent.CTRL_MASK));
+        openItem.addActionListener(e -> open());
         saveItem = new JMenuItem("Save Destination File As");
         saveItem.setAccelerator(KeyStroke.getKeyStroke(KeyEvent.VK_S, ActionEvent.CTRL_MASK));
-
         saveItem.setEnabled(false);
+        saveItem.addActionListener(new ActionListener() {
+            public void actionPerformed(ActionEvent e) {
+                open();
+            }
+        });
+
+
         exitItem = new JMenuItem("Exit");
         exitItem.setAccelerator(KeyStroke.getKeyStroke(KeyEvent.VK_X, ActionEvent.CTRL_MASK));
+
+        exitItem.addActionListener(e -> System.exit(0));
         fileMenu.add(openItem);
         fileMenu.add(saveItem);
         fileMenu.addSeparator();
@@ -101,8 +111,10 @@ public class GUIMonitor extends Component implements ActionListener {
 
         txtFind.setBounds(88, 23, 327, 20);
         pnlFind.add(txtFind);
+        txtFind.setText("");
         txtReplace = new JTextField();
         txtReplace.setBounds(88, 60, 327, 20);
+        txtReplace.setText("");
         pnlFind.add(txtReplace);
         chkNotify = new JCheckBox("Notify user on every match");
         chkNotify.setBounds(88, 87, 180, 17);
@@ -114,9 +126,12 @@ public class GUIMonitor extends Component implements ActionListener {
 
         btnCreate = new JButton("Copy to Destination");
         btnCreate.setBounds(465, 119, 230, 23);
+
+
         frame.add(btnCreate);
         btnClear = new JButton("Clear dest. and remove marks");
         btnClear.setBounds(465, 151, 230, 23);
+
         frame.add(btnClear);
 
         lblChanges = new JLabel("No. of Replacements:");
@@ -127,45 +142,43 @@ public class GUIMonitor extends Component implements ActionListener {
         tabbedPane.setBounds(12, 170, 653, 359);
         frame.add(tabbedPane);
         txtPaneSource = new JTextPane();
+
         JScrollPane scrollSource = new JScrollPane(txtPaneSource);
         tabbedPane.addTab("Source", null, scrollSource, null);
         JTextPane txtPaneDest = new JTextPane();
         JScrollPane scrollDest = new JScrollPane(txtPaneDest);
         tabbedPane.addTab("Destination", null, scrollDest, null);
 
-
         btnClear.addActionListener(this);
         btnCreate.addActionListener(this);
-        openItem.addActionListener(this);
-        saveItem.addActionListener(this);
-        exitItem.addActionListener(this);
-
-
     }
-
 
     public void actionPerformed(ActionEvent e) {
-        JMenuItem source = (JMenuItem) (e.getSource());
-        String a = source.getActionCommand();
+        if (e.getSource() == btnCreate) {
+            if (!txtFind.getText().isEmpty() && !txtReplace.getText().isEmpty()) {
+                int reply = JOptionPane.showConfirmDialog(null, "Replace " + txtFind.getText() + " with " + txtReplace.getText() + ".", "Confirm", JOptionPane.YES_NO_OPTION);
+                if (reply == JOptionPane.YES_OPTION) {
 
-        if (a.equalsIgnoreCase("Open Source File")) {
-            open();
-        }
-        if (a.equalsIgnoreCase("Save Destination File As")) {
 
-        }
-        if (a.equalsIgnoreCase("Exit")) {
-            System.exit(0);
+                    highlight(txtPaneSource, txtFind.getText());
+
+                }
+            } else if (txtFind.getText().isEmpty() || txtReplace.getText().isEmpty()) {
+                JOptionPane.showMessageDialog(null, "Please fill in both fields");
+
+            }
         }
         if (e.getSource() == btnClear) {
-            controller.btnClear();
-        }
-        if (e.getSource() == btnCreate) {
-            controller.btnCreate();
+            txtPaneSource.setText("");
+            txtFind.setText("");
+            txtReplace.setText("");
+
+
         }
     }
-    public void open() {
 
+    private void open() {
+        fileChooser = new JFileChooser();
         FileNameExtensionFilter filter = new FileNameExtensionFilter("Txt", "txt");
         fileChooser.setFileFilter(filter);
 
@@ -178,8 +191,9 @@ public class GUIMonitor extends Component implements ActionListener {
 
             txtPaneSource.setText(controller.getFileText());
             controller.run();
-            highLight();
+
         }
+
     }
 
     public String getTxtFind() {
@@ -189,19 +203,41 @@ public class GUIMonitor extends Component implements ActionListener {
     public String getTxtReplace() {
         return txtReplace.getText();
     }
-    public void highLight(){
 
-        SimpleAttributeSet sas = new SimpleAttributeSet();
-        StyleConstants.setForeground(sas, Color.YELLOW);
-        doc.setCharacterAttributes(txtPaneSource.getSelectionStart(), txtPaneSource, sas, false);
+    public JTextPane getTxtPaneSource() {
+        return txtPaneSource;
+    }
 
-        DefaultHighlighter.DefaultHighlightPainter highlightPainter =
-                new DefaultHighlighter.DefaultHighlightPainter(Color.YELLOW);
+    class MyHighlightPainter extends DefaultHighlighter.DefaultHighlightPainter {
+
+        public MyHighlightPainter() {
+            super(Color.green);
+
+        }
+    }
+
+    Highlighter.HighlightPainter myHighlightPainter = new MyHighlightPainter();
+
+    public void highlight(JTextPane txtPaneSource, String pattern) {
+
         try {
-            txtPaneSource.getHighlighter().addHighlight(txtPaneSource.getSelectionStart(), txtPaneSource.getSelectionEnd(),
-                    highlightPainter);
-        } catch (BadLocationException e) {
+            hilite = txtPaneSource.getHighlighter();
+            Document doc = txtPaneSource.getDocument();
+            String text = doc.getText(0, doc.getLength());
+            int pos = 0;
+            while ((pos = text.toUpperCase().indexOf(pattern.toUpperCase(), pos)) >= 0) {
+                hilite.addHighlight(pos, pos + pattern.length(), myHighlightPainter);
+
+                pos += pattern.length();
+                System.out.println(pattern.toString());
+
+
+            }
+        } catch (Exception e) {
             e.printStackTrace();
         }
-    }}
+    }
+
+}
+
 

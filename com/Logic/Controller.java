@@ -18,32 +18,24 @@ public class Controller {
     private Writer writer;
     private Reader reader;
     private Modifier modifier;
-    private GUIMonitor test;
-    private List<String> temps = new LinkedList<>();
-    private String[] tempsArray;
+    private GUIMonitor gui;
+    private List<String> temps;
     private boolean notify;
     private String find;
     private String strReplace;
-    private int element;
 
-    public Controller(GUIMonitor test) {
-        this.test=test;
 
-        this.writer = writer;
-        this.reader = reader;
-        this.modifier = modifier;
-    }
+    public Controller(GUIMonitor gui) {
+        this.gui = gui;
 
-    public void btnCreate() {
-    }
 
-    public void btnClear() {
     }
 
     public void readFile(String txtFile ) {
+        temps = new LinkedList<>();
         String token1 = "";
         try {
-            Scanner inFile1 = new Scanner(new File(txtFile)).useDelimiter(",\\s*");
+            Scanner inFile1 = new Scanner(new File(txtFile)).useDelimiter(" ,\\s*");
 
             while (inFile1.hasNext()) {
                 token1 = inFile1.next();
@@ -51,15 +43,13 @@ public class Controller {
             }
             inFile1.close();
 
-           tempsArray = temps.toArray(new String[0]);
 
         }catch(FileNotFoundException e){
             e.printStackTrace();
         }
     }
         public String getFileText() {
-            for (String s : tempsArray) {
-
+            for (String s : temps) {
                 return s;
             }
             return String.valueOf(this);
@@ -67,8 +57,12 @@ public class Controller {
         }
 
     public void run(){
-        find= test.getTxtFind();
-        strReplace = test.getTxtReplace();
-        this.buffer= new BoundedBuffer(getFileText(), notify,find,strReplace,element);
+        find = gui.getTxtFind();
+        strReplace = gui.getTxtReplace();
+        buffer = new BoundedBuffer(gui.getTxtPaneSource(), notify, gui.getTxtFind(), gui.getTxtReplace(), 15);
+        writer = new Writer(buffer, temps);
+        reader = new Reader(buffer, 15);
+        writer.run();
+        reader.run();
     }
 }

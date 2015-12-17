@@ -1,22 +1,35 @@
 package com.Logic;
 
 import com.BoundedBuffer.BoundedBuffer;
+import com.BoundedBuffer.BufferStatus;
 
-import java.util.LinkedList;
+import java.util.List;
 
 /**
  * Created by Dennis on 2015-12-07.
  */
-public class Writer {
-    private BoundedBuffer buffer;
-    private LinkedList<String> textToWrite = new LinkedList<>();
+public class Writer implements Runnable {
 
-    public Writer(BoundedBuffer buffer, LinkedList<String> textToWrite) {
+    private BoundedBuffer buffer;
+    private List<String> textIn;
+
+    public Writer(BoundedBuffer buffer, List<String> textIn) {
         this.buffer = buffer;
-        this.textToWrite = textToWrite;
+        this.textIn = textIn;
     }
 
-    public void WriteLoop() {
 
+    @Override
+    public void run() {
+
+        for (String s : textIn) {
+            try {
+                buffer.WriteData(s);
+            } catch (InterruptedException e) {
+                e.printStackTrace();
+            }
+        }
     }
 }
+
+
