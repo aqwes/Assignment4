@@ -1,34 +1,35 @@
-package com.Logic;
+package com.Workers;
 
 import com.BoundedBuffer.BoundedBuffer;
 
-import java.util.LinkedList;
+import java.util.ArrayList;
 import java.util.List;
 
 /**
  * Created by Dennis on 2015-12-07.
+ * This class runs  a method that add lines to the stringlist from the BufferReader method.
  */
-public class Reader implements Runnable {
+public class Reader extends Thread {
     private BoundedBuffer buffer;
     private int count;
-    private List<String> stringList;
+    private List<String> stringList = new ArrayList<>();
 
     public Reader(BoundedBuffer buffer, int count) {
         this.buffer = buffer;
         this.count = count;
     }
-
-
-    @Override
     public void run() {
-        for (int i = 0; i < count; i++) {
-            try {
+        try {
+            while (stringList.size() < count) {
                 stringList.add(buffer.ReadData());
-            } catch (InterruptedException e) {
+            }
+            buffer.show();
+
+        } catch (InterruptedException e) {
                 e.printStackTrace();
             }
         }
-    }
+
 
     public List<String> getStringList() {
         return stringList;

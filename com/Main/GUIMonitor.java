@@ -1,9 +1,8 @@
-package com.MonitorStud;
+package com.Main;
 
-import com.Logic.Controller;
+import com.Workers.Controller;
 
 import javax.swing.*;
-import javax.swing.filechooser.FileNameExtensionFilter;
 import javax.swing.text.DefaultHighlighter;
 import javax.swing.text.Document;
 import javax.swing.text.Highlighter;
@@ -11,7 +10,6 @@ import java.awt.*;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import java.awt.event.KeyEvent;
-import java.io.File;
 
 /**
  * The GUI for assignment 4
@@ -34,17 +32,18 @@ public class GUIMonitor extends Component implements ActionListener {
     private JButton btnClear;            // Removes dest. file and removes marks
     private JLabel lblChanges;            // Label telling number of replacements
     private Controller controller;
-    private JFileChooser fileChooser;
-    private File file;
-    private String txtFile;
-    private JTextPane txtPaneSource;
+    private JTextArea txtPaneSource;
+    private JTextArea txtPaneDest;
     private Highlighter hilite;
-
+    private int nbrReplacements = 0;
+    private int i = 0;
     /**
      * Constructor
      */
     public GUIMonitor() {
     }
+
+    private Highlighter.HighlightPainter myHighlightPainter = new MyHighlightPainter();
 
     /**
      * Starts the application
@@ -54,7 +53,7 @@ public class GUIMonitor extends Component implements ActionListener {
     public void Start(Controller controller) {
         this.controller = controller;
         frame = new JFrame();
-        frame.setBounds(0, 0, 714, 600);
+        frame.setBounds(0, 0, 754, 640);
         frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
         frame.setLayout(null);
         frame.setTitle("Text File Copier - with Find and Replace");
@@ -71,16 +70,12 @@ public class GUIMonitor extends Component implements ActionListener {
         fileMenu = new JMenu("File");
         openItem = new JMenuItem("Open Source File");
         openItem.setAccelerator(KeyStroke.getKeyStroke(KeyEvent.VK_O, ActionEvent.CTRL_MASK));
-        openItem.addActionListener(e -> open());
+        openItem.addActionListener(e -> controller.open());
         saveItem = new JMenuItem("Save Destination File As");
         saveItem.setAccelerator(KeyStroke.getKeyStroke(KeyEvent.VK_S, ActionEvent.CTRL_MASK));
         saveItem.setEnabled(false);
-        saveItem.addActionListener(new ActionListener() {
-            public void actionPerformed(ActionEvent e) {
-                open();
-            }
-        });
 
+        saveItem.addActionListener(e -> controller.open());
 
         exitItem = new JMenuItem("Exit");
         exitItem.setAccelerator(KeyStroke.getKeyStroke(KeyEvent.VK_X, ActionEvent.CTRL_MASK));
@@ -93,7 +88,6 @@ public class GUIMonitor extends Component implements ActionListener {
         JMenuBar bar = new JMenuBar();
         frame.setJMenuBar(bar);
         bar.add(fileMenu);
-
 
         JPanel pnlFind = new JPanel();
         pnlFind.setBorder(BorderFactory.createTitledBorder(BorderFactory.createLineBorder(Color.black), "Find and Replace"));
@@ -127,7 +121,6 @@ public class GUIMonitor extends Component implements ActionListener {
         btnCreate = new JButton("Copy to Destination");
         btnCreate.setBounds(465, 119, 230, 23);
 
-
         frame.add(btnCreate);
         btnClear = new JButton("Clear dest. and remove marks");
         btnClear.setBounds(465, 151, 230, 23);
@@ -139,98 +132,108 @@ public class GUIMonitor extends Component implements ActionListener {
         frame.add(lblChanges);
 
         JTabbedPane tabbedPane = new JTabbedPane(JTabbedPane.TOP);
-        tabbedPane.setBounds(12, 170, 653, 359);
+        tabbedPane.setBounds(0, 170, 763, 399);
         frame.add(tabbedPane);
-        txtPaneSource = new JTextPane();
 
+        txtPaneSource = new JTextArea();
+        txtPaneSource.setLineWrap(true);
+        txtPaneSource.setEditable(false);
         JScrollPane scrollSource = new JScrollPane(txtPaneSource);
-        tabbedPane.addTab("Source", null, scrollSource, null);
-        JTextPane txtPaneDest = new JTextPane();
+        tabbedPane.addTab("Source", scrollSource);
+
+        txtPaneDest = new JTextArea();
+        txtPaneDest.setLineWrap(true);
+        txtPaneDest.setEditable(false);
+
         JScrollPane scrollDest = new JScrollPane(txtPaneDest);
-        tabbedPane.addTab("Destination", null, scrollDest, null);
+        tabbedPane.addTab("Destination", scrollDest);
 
         btnClear.addActionListener(this);
         btnCreate.addActionListener(this);
+        chkNotify.addActionListener(this);
     }
 
     public void actionPerformed(ActionEvent e) {
         if (e.getSource() == btnCreate) {
-            if (!txtFind.getText().isEmpty() && !txtReplace.getText().isEmpty()) {
-                int reply = JOptionPane.showConfirmDialog(null, "Replace " + txtFind.getText() + " with " + txtReplace.getText() + ".", "Confirm", JOptionPane.YES_NO_OPTION);
-                if (reply == JOptionPane.YES_OPTION) {
-
-
-                    highlight(txtPaneSource, txtFind.getText());
-
-                }
-            } else if (txtFind.getText().isEmpty() || txtReplace.getText().isEmpty()) {
+            if (txtFind.getText().isEmpty() || txtReplace.getText().isEmpty()) {
                 JOptionPane.showMessageDialog(null, "Please fill in both fields");
 
+            } else if (chkNotify.isSelected()) {
+                int reply = JOptionPane.showConfirmDialog(null, "Replace " + txtFind.getText() + " with " + txtReplace.getText() + ".", "Confirm", JOptionPane.YES_NO_OPTION);
+                if (reply == JOptionPane.YES_OPTION) {
+                    controllHighliht();
+                }
+            } else {
+                controllHighliht();
             }
         }
         if (e.getSource() == btnClear) {
-            txtPaneSource.setText("");
             txtFind.setText("");
             txtReplace.setText("");
-
-
+            lblChanges.setText("No. of Replacements:");
+            txtPaneDest.setText("");
+            nbrReplacements = 0;
+            txtPaneSource.setText("");
+            controller.readFile();
+            i = 0;
         }
     }
 
-    private void open() {
-        fileChooser = new JFileChooser();
-        FileNameExtensionFilter filter = new FileNameExtensionFilter("Txt", "txt");
-        fileChooser.setFileFilter(filter);
-
-        int option = fileChooser.showOpenDialog(this);
-        if (option == JFileChooser.APPROVE_OPTION) {
-            file = fileChooser.getSelectedFile();
-
-            txtFile = file.toString();
-            controller.readFile(txtFile);
-
-            txtPaneSource.setText(controller.getFileText());
+    /**
+     * I made this method to make it possible to write to the same text more than once.
+     */
+    private void controllHighliht() {
+        if (i == 0) {
             controller.run();
-
         }
-
+        if (i > 0) {
+            controller.run2();
+        }
+        i++;
+        highlight(txtPaneSource, txtFind.getText());
     }
 
     public String getTxtFind() {
         return txtFind.getText();
     }
 
-    public String getTxtReplace() {
+    public void setTxtPaneSource(String txtPaneSource) {
+        this.txtPaneSource.append(txtPaneSource);
+    }
+
+    public String getTxtReplaceString() {
         return txtReplace.getText();
     }
 
-    public JTextPane getTxtPaneSource() {
-        return txtPaneSource;
-    }
-
-    class MyHighlightPainter extends DefaultHighlighter.DefaultHighlightPainter {
-
-        public MyHighlightPainter() {
-            super(Color.green);
-
+    /**
+     * This method gets the text text that has been modified and appends it to the destination.
+     */
+    public void appeandDestination() {
+        txtPaneDest.setText("");
+        for (String s : controller.getReaderList()) {
+            txtPaneDest.append(s);
         }
     }
 
-    Highlighter.HighlightPainter myHighlightPainter = new MyHighlightPainter();
-
-    public void highlight(JTextPane txtPaneSource, String pattern) {
-
+    /**
+     * This method higlight the text in the source window
+     *
+     * @param txtPaneSource
+     * @param pattern
+     */
+    private void highlight(JTextArea txtPaneSource, String pattern) {
         try {
             hilite = txtPaneSource.getHighlighter();
+
             Document doc = txtPaneSource.getDocument();
             String text = doc.getText(0, doc.getLength());
             int pos = 0;
             while ((pos = text.toUpperCase().indexOf(pattern.toUpperCase(), pos)) >= 0) {
+
                 hilite.addHighlight(pos, pos + pattern.length(), myHighlightPainter);
-
+                nbrReplacements++;
+                lblChanges.setText("No. of Replacements: " + nbrReplacements);
                 pos += pattern.length();
-                System.out.println(pattern.toString());
-
 
             }
         } catch (Exception e) {
@@ -238,6 +241,13 @@ public class GUIMonitor extends Component implements ActionListener {
         }
     }
 
+    class MyHighlightPainter extends DefaultHighlighter.DefaultHighlightPainter {
+
+        public MyHighlightPainter() {
+            super(Color.red);
+
+        }
+    }
 }
 
 

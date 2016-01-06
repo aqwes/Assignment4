@@ -1,35 +1,33 @@
-package com.Logic;
+package com.Modifier;
 
 import com.BoundedBuffer.BoundedBuffer;
-import com.BoundedBuffer.BufferStatus;
 
 import java.util.List;
 
 /**
+ * This class modifies the text
  * Created by Dennis on 2015-12-07.
  */
-public class Writer implements Runnable {
-
+public class Modifier extends Thread {
     private BoundedBuffer buffer;
-    private List<String> textIn;
+    private int count;
 
-    public Writer(BoundedBuffer buffer, List<String> textIn) {
+
+    public Modifier(BoundedBuffer buffer, List<String> inText) {
         this.buffer = buffer;
-        this.textIn = textIn;
+        this.count = inText.size();
+
     }
 
 
     @Override
     public void run() {
-
-        for (String s : textIn) {
+        for (int i = 0; i < count; i++) {
             try {
-                buffer.WriteData(s);
+                buffer.Modify();
             } catch (InterruptedException e) {
                 e.printStackTrace();
             }
         }
     }
 }
-
-

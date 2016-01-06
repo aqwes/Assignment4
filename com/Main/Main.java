@@ -1,9 +1,6 @@
-package com.MonitorStud;
+package com.Main;
 
-import com.Logic.Controller;
-
-import javax.swing.text.Highlighter;
-import java.awt.*;
+import com.Workers.Controller;
 
 public class Main {
 
@@ -11,7 +8,6 @@ public class Main {
         GUIMonitor test = new GUIMonitor();
         Controller controller = new Controller(test);
         test.Start(controller);
-
 
     }
 }

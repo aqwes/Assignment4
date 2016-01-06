@@ -1,45 +1,39 @@
 package com.BoundedBuffer;
 
-import sun.awt.Mutex;
 
-import javax.swing.*;
-import javax.swing.text.BadLocationException;
-import javax.swing.text.Document;
-import java.util.concurrent.Semaphore;
+import com.Workers.Controller;
+
+import java.util.concurrent.locks.Condition;
+import java.util.concurrent.locks.Lock;
+import java.util.concurrent.locks.ReentrantLock;
+
 
 /**
  * Created by Dennis on 2015-12-07.
+ * This class handles the write, modifier and reader threads.
+ * I´ve created three condition variables that controls these three methods.
+ * There´s also a lock that ensures mutual exclusion.
+
  */
 public class BoundedBuffer {
     private String[] strArr;
     private BufferStatus[] status;
-
-    private int max;
+    private static final int max = 15;
     private int writePos;
     private int readPos;
     private int findPos;
-    private JTextPane rtxBox;
     private String findString;
     private String replaceString;
-    private int start;
-    private int nbrReplacements;
-    private boolean notify;
-    private Mutex lock;
-    private Semaphore semEmpty;
-    private Semaphore semFull;
 
-    public BoundedBuffer(JTextPane rtxBox, boolean notify, String find, String strReplace, int element) {
-        this.rtxBox = rtxBox;
-        this.notify = notify;
+    private Controller controller;
+
+
+    public BoundedBuffer(String find, String strReplace, Controller controller) {
+        this.controller = controller;
         this.findString = find;
         this.replaceString = strReplace;
-        this.max = element;
-        strArr = new String[element];
-        status = new BufferStatus[element];
-
-        lock = new Mutex();
-        semFull = new Semaphore(0);
-        semEmpty = new Semaphore(element);
+        strArr = new String[max];
+        status = new BufferStatus[max];
 
 
         for (int i = 0; i < status.length; i++) {
@@ -47,53 +41,76 @@ public class BoundedBuffer {
         }
     }
 
+    /**
+     * This method checks every NEW string and replace the findString with the replaceString if needed.
+     *
+     * @throws InterruptedException
+     */
+    public synchronized void Modify() throws InterruptedException {
 
 
-    public void Modify() {
-        if (rtxBox.equals(findString)) {
-            nbrReplacements++;
-
+        while (status[findPos] != BufferStatus.New) {
+            wait();
         }
-    }
-
-    public String ReadData() throws InterruptedException {
-
-        semEmpty.acquire();
-
-        synchronized (lock) {
-            if (status[readPos] == BufferStatus.Checked) {
-
-                status[readPos] = BufferStatus.Empty;
-            }
-            semFull.release();
-            return strArr[readPos];
+        if (strArr[findPos].contains(findString)) {
+            String s = strArr[findPos].replaceAll(findString, replaceString);
+            strArr[findPos] = s;
         }
-    }
+        status[findPos] = BufferStatus.Checked;
+        findPos = (findPos + 1) % max;
 
-    public String ReplaceAt(String strSource, String strReplace, int pos, int size) throws BadLocationException {
-        rtxBox.setText(strSource.replaceFirst(strSource, strReplace));
-
-        return strSource;
-    }
-
-    public void Select() {
+        notifyAll();
 
     }
 
-    public void WriteData(String s) throws InterruptedException {
+    /**
+     * This method writes to the buffer if the object has BufferStatus empty.
+     *
+     * @param s
+     * @throws InterruptedException
+     */
 
-        semFull.acquire();
+    public synchronized void WriteData(String s) throws InterruptedException {
 
+
+        while (status[writePos] != BufferStatus.Empty) {
+            wait();
+        }
         strArr[writePos] = s;
+        status[writePos] = BufferStatus.New;
+        writePos = (writePos + 1) % max;
 
-        if (status[writePos] != BufferStatus.Empty) {
-            synchronized (lock) {
-                status[writePos + 1 % max] = BufferStatus.New;
+        notifyAll();
 
-            }
-            status[writePos] = BufferStatus.Checked;
-        }
-        semEmpty.release();
     }
 
+    /**
+     * This method reads from the buffer if the object has BufferStatus checked.
+     *
+     * @return
+     * @throws InterruptedException
+     */
+    public synchronized String ReadData() throws InterruptedException {
+
+
+        while (status[readPos] != BufferStatus.Checked) {
+            wait();
+        }
+        String s = strArr[readPos];
+        status[readPos] = BufferStatus.Empty;
+        readPos = (readPos + 1) % max;
+        notifyAll();
+        return s;
+
+
+    }
+
+    /**
+     * This method appens the destination text to the source for another modification.
+     */
+    public void show() {
+        controller.showDestination();
+    }
 }
+
+
