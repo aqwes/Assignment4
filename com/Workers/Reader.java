@@ -23,6 +23,7 @@ public class Reader extends Thread {
             while (stringList.size() < count) {
                 stringList.add(buffer.ReadData());
             }
+
             buffer.show();
 
         } catch (InterruptedException e) {
